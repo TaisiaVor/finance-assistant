@@ -1,0 +1,26 @@
+{
+  "savings_rates": [
+    {"from": "01.09.2026", "rate": 0.18},
+    {"from": "01.01.2027", "rate": 0.14}
+  ],
+  "safety_cushion": 5000.00,
+  "mandatory_categories": {
+    "credits": ["credits"],
+    "other_mandatory": ["other_mandatory"]
+  },
+  "category_rules": [
+    {"category": "groceries", "keywords": ["пятёрочка", "магнит", "перекрёсток", "лента"], "priority": 5},
+    {"category": "cafe", "keywords": ["вкусно", "столовая", "кофе", "кафе", "ресторан"], "priority": 5},
+    {"category": "transport", "keywords": ["такси", "яндекс go", "метро", "бензин"], "priority": 5},
+    {"category": "subscriptions", "keywords": ["netflix", "spotify", "подписка"], "priority": 10},
+    {"category": "pharmacy", "keywords": ["аптека", "аптеки"], "priority": 5}
+  ],
+  "goal": {
+    "name": "Закрыть кредит на товар",
+    "target_amount": 38400.00,
+    "target_date": "31.12.2026",
+    "loan_id": "loan_goods"
+  },
+  "savings_mode": "max_safe",
+  "savings_percent": 15.0
+}
