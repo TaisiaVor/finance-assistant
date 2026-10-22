@@ -150,3 +150,28 @@ class Goal:
     def __str__(self):
         deadline = f" к {self.target_date}" if self.target_date else ""
         return f"Цель «{self.name}»: {self.target_amount:.2f} RUB{deadline}"
+
+
+class Transaction:
+    """Фактическая операция: трата, доход или перевод.
+
+    amount: отрицательное — расход, положительное — доход.
+    category заполняется позже, в categorizer.py, по правилам из rules.json.
+    is_transfer=True — перевод между своими счетами (не считается расходом).
+    """
+
+    def __init__(self, tx_id, date, amount, description, account_id):
+        self.tx_id = tx_id
+        self.date = date
+        self.amount = amount
+        self.description = description
+        self.account_id = account_id
+        self.category = None
+        self.is_transfer = False
+
+    def __str__(self):
+        sign = "−" if self.amount < 0 else "+"
+        return (
+            f"{self.date} {self.description}: "
+            f"{sign}{abs(self.amount):.2f} RUB"
+        )
