@@ -1,0 +1,8 @@
+payment_id,name,amount,day_of_month,period_months,category
+pay_salary,Зарплата,50000.00,5,1,income
+pay_rent,Аренда,-30000.00,10,1,other_mandatory
+pay_loan_edu1,Образовательный кредит №1,-6100.00,10,1,credits
+pay_loan_edu2,Образовательный кредит №2,-6100.00,10,1,credits
+pay_loan_goods,Кредит на товар,-9200.00,15,1,credits
+pay_netflix,Netflix,-199.00,2,1,other_mandatory
+pay_spotify,Spotify,-299.00,3,1,other_mandatory
