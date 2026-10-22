@@ -106,3 +106,84 @@ def min_balance(timeline):
     if not timeline:
         return (None, None)
     return min(timeline, key=lambda x: x[1])
+
+
+
+def rate_on(savings_rates, d):
+    """Какая ставка накопительного действует в день d.
+
+    Args:
+        savings_rates: список словарей вида [{"from": "01.09.2026", "rate": 0.18}, ...]
+                       (из rules.json).
+        d: date — день, для которого ищем ставку.
+
+    Returns:
+        float — ставка (0.18 = 18%). Если d раньше первой даты —
+        берём первую ставку (до начала действия ставки считаем её же).
+
+    Логика: идём по списку, пока from <= d. Последняя подходящая — актуальная.
+    """
+    from datetime import datetime
+
+    current = None
+    for item in savings_rates:
+        from_date = datetime.strptime(item["from"], "%d.%m.%Y").date()
+        if from_date <= d:
+            current = item["rate"]
+        else:
+            break   # список отсортирован по возрастанию from
+    if current is None:
+        # d раньше первой даты — берём первую ставку
+        current = savings_rates[0]["rate"]
+    return current
+
+
+def forecast_balance_with_interest(accounts, payments, loans, rules, start, end):
+    """Прогноз с процентами на накопительном.
+
+    Отличие от forecast_balance: разделяем debit и savings, начисляем
+    проценты на savings ежедневно, в конце дня складываем.
+
+    Args:
+        rules: словарь из load_rules (там "savings_rates", "raw").
+        Остальное — как в forecast_balance.
+
+    Returns:
+        Список (date, total_balance), где total_balance = debit + savings.
+    """
+    savings_rates = rules["raw"].get("savings_rates", [])
+
+    # разделяем счета
+    debit_balance = 0.0
+    savings_balance = 0.0
+    for a in accounts:
+        if a.kind == "savings":
+            savings_balance += a.balance
+        else:
+            debit_balance += a.balance
+
+    # все платежи в интервале — как в forecast_balance
+    daily_delta = {}
+    for p in payments:
+        for d in payment_dates_between(p, start, end):
+            daily_delta[d] = daily_delta.get(d, 0.0) + p.amount
+    for loan in loans:
+        for d in payment_dates_between(loan, start, end):
+            daily_delta[d] = daily_delta.get(d, 0.0) - loan.last_payment()
+
+    timeline = []
+    d = start
+    while d <= end:
+        # 1. проценты на остаток накопительного за прошедший день
+        rate = rate_on(savings_rates, d)
+        interest = savings_balance * rate / 365.0
+        savings_balance += interest
+
+        # 2. платежи и доходы дня — на дебет
+        debit_balance += daily_delta.get(d, 0.0)
+
+        # 3. итоговый баланс
+        total = debit_balance + savings_balance
+        timeline.append((d, round(total, 2)))
+        d += timedelta(days=1)
+    return timeline
