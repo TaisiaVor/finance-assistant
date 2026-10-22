@@ -10,6 +10,14 @@
 from datetime import date
 from src.errors import ValidationError
 
+def _normalize_yo(text):
+    """Приводит текст к нижнему регистру и заменяет ё на е.
+
+    "Перекрёсток".lower() = "перекрёсток", но "Перекресток".lower() = "перекресток".
+    Это разные строки в Unicode (ё = U+0451, е = U+0435), и без замены
+    правило "перекрёсток" не найдёт "Перекресток". Заменяем ё→е в обоих.
+    """
+    return text.lower().replace("ё", "е")
 
 class Account:
     """Счёт: дебетовая карта, накопительный, кредитка, кредит."""
@@ -130,9 +138,13 @@ class CategoryRule:
         self.priority = priority
 
     def matches(self, description):
-        """Возвращает True, если описание содержит хотя бы одно ключевое слово."""
-        text = description.lower()
-        return any(kw.lower() in text for kw in self.keywords)
+        """Возвращает True, если описание содержит хотя бы одно ключевое слово.
+        Нормализуем ё→е и в описании, и в ключевых словах: "Перекресток"
+        (с е) должен находиться правилом "перекрёсток" (с ё) — это разные
+        символы Unicode, и без нормализации они не совпадают.
+        """
+        text = _normalize_yo(description)
+        return any(_normalize_yo(kw) in text for kw in self.keywords)
 
     def __str__(self):
         return f"Правило «{self.category}»: {self.keywords} (приоритет {self.priority})"
