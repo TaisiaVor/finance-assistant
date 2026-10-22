@@ -1,0 +1,3 @@
+account_id, name, balance, kind
+acc_debit, Зарплатная карта, 45000.00, debit
+acc_savings, Накопительный счет, 120000.00, savings
