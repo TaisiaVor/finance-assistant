@@ -219,3 +219,115 @@ def load_credit_cards(path):
     except FileNotFoundError as err:
         raise DataError(f"Файл кредиток не найден: {path}") from err
     return cards
+
+
+  
+
+# ---------- чтение/запись JSON ----------
+
+def load_rules(path):
+    """Читает data/rules.json → словарь с ключами rules, limits, goal, savings.
+
+    Ожидаемая структура (см. data/rules.json):
+        {
+          "savings_rates": [...],
+          "safety_cushion": 5000.0,
+          "category_rules": [...],
+          "goal": {...},
+          ...
+        }
+
+    Возвращает словарь:
+        {
+          "rules": [CategoryRule, ...],
+          "goal": Goal | None,
+          "raw": исходный dict (на будущее),
+        }
+    """
+    file = Path(path)
+    if not file.exists():
+        raise DataError(f"Файл правил не найден: {path}")
+
+    try:
+        with file.open(encoding="utf-8") as f:
+            raw = json.load(f)
+    except json.JSONDecodeError as err:
+        raise DataError(
+            f"Битый JSON в {path}: {err.msg} (позиция {err.pos})"
+        ) from err
+    except FileNotFoundError as err:
+        raise DataError(f"Файл правил не найден: {path}") from err
+
+    # правил категоризации может не быть — тогда пустой список
+    rules = []
+    for i, item in enumerate(raw.get("category_rules", []), start=1):
+        try:
+            rules.append(CategoryRule(
+                category=item["category"],
+                keywords=list(item["keywords"]),
+                priority=int(item.get("priority", 0)),
+            ))
+        except KeyError as err:
+            raise DataError(
+                f"В правиле №{i} нет поля {err}",
+                line_no=i, field=str(err),
+            ) from err
+
+    # цель может отсутствовать
+    goal = None
+    if "goal" in raw:
+        g = raw["goal"]
+        try:
+            goal = Goal(
+                name=g["name"],
+                target_amount=float(g["target_amount"]),
+                target_date=_parse_date(g["target_date"], 0, "goal.target_date")
+                if g.get("target_date") else None,
+                loan_id=g.get("loan_id"),
+            )
+        except KeyError as err:
+            raise DataError(f"В goal нет поля {err}", field=str(err)) from err
+
+    return {"rules": rules, "goal": goal, "raw": raw}
+
+
+def load_state(path):
+    """Читает data/state.json. Если файла нет — пустое состояние.
+
+    Состояние между запусками: какие tx_id уже обработаны,
+    какие платежи отмечены как оплаченные.
+    """
+    file = Path(path)
+    if not file.exists():
+        return {"seen_tx_ids": [], "paid_payment_ids": []}
+
+    try:
+        with file.open(encoding="utf-8") as f:
+            state = json.load(f)
+    except json.JSONDecodeError as err:
+        raise DataError(
+            f"Битый JSON состояния {path}: {err.msg} (позиция {err.pos})"
+        ) from err
+
+    # гарантируем обязательные ключи — даже если в файле их нет
+    state.setdefault("seen_tx_ids", [])
+    state.setdefault("paid_payment_ids", [])
+    return state
+
+
+def save_state(path, state):
+    """Записывает состояние в data/state.json. Создаёт папку, если её нет."""
+    file = Path(path)
+    file.parent.mkdir(parents=True, exist_ok=True)
+
+    # множества → списки, чтобы JSON-сериализация сработала
+    serializable = {
+        "seen_tx_ids": sorted(state.get("seen_tx_ids", [])),
+        "paid_payment_ids": sorted(state.get("paid_payment_ids", [])),
+    }
+
+    try:
+        with file.open("w", encoding="utf-8") as f:
+            json.dump(serializable, f, ensure_ascii=False, indent=2)
+    except OSError as err:
+        raise DataError(f"Не удалось сохранить состояние в {path}: {err}") from err  
