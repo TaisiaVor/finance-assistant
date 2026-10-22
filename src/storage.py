@@ -20,6 +20,24 @@ from src.models import (
 
 
 # ---------- вспомогательные парсеры ----------
+def _normalize_row(row):
+    """Убирает пробелы из ключей и значений строки CSV.
+
+    Причина: Excel и некоторые редакторы сохраняют CSV с пробелом после
+    запятой: "name, balance" → ключ ' balance' (с пробелом). Тогда
+    reader.fieldnames = ['name', ' balance'], и наши проверки на
+    обязательные колонки падают. Нормализуем: strip() и для ключей, и
+    для значений.
+    """
+    return {k.strip(): (v.strip() if isinstance(v, str) else v)
+            for k, v in row.items()}
+
+
+def _normalize_fieldnames(reader):
+    """Убирает пробелы из имён колонок в reader.fieldnames (на месте)."""
+    if reader.fieldnames:
+        reader.fieldnames = [name.strip() for name in reader.fieldnames]
+    return reader
 
 def _parse_date(value, line_no, field_name):
     """Парсит дату из '15.10.2026' или '2026-10-15'. Бросает DataError."""
@@ -59,12 +77,14 @@ def load_accounts(path):
     try:
         with file.open(encoding="utf-8", newline="") as f:
             reader = csv.DictReader(f)
+            _normalize_fieldnames(reader)
             required = {"account_id", "name", "balance", "kind"}
             if not required.issubset(reader.fieldnames or []):
                 raise DataError(
                     f"В {path} нет обязательных колонок: {required}"
                 )
             for i, row in enumerate(reader, start=2):
+                row = _normalize_row(row)
                 balance = _parse_float(row["balance"], i, "balance")
                 accounts.append(Account(
                     account_id=row["account_id"].strip(),
@@ -94,6 +114,7 @@ def load_transactions(path):
     try:
         with file.open(encoding="utf-8", newline="") as f:
             reader = csv.DictReader(f)
+            _normalize_fieldnames(reader)
             required = {"tx_id", "date", "amount", "description", "account_id"}
             if not required.issubset(reader.fieldnames or []):
                 raise DataError(
@@ -126,12 +147,14 @@ def load_payments(path):
     try:
         with file.open(encoding="utf-8", newline="") as f:
             reader = csv.DictReader(f)
+            _normalize_fieldnames(reader)
             required = {"payment_id", "name", "amount", "day_of_month", "period_months"}
             if not required.issubset(reader.fieldnames or []):
                 raise DataError(
                     f"В {path} нет обязательных колонок: {required}"
                 )
             for i, row in enumerate(reader, start=2):
+                row = _normalize_row(row)  
                 day = int(_parse_float(row["day_of_month"], i, "day_of_month"))
                 if not 1 <= day <= 31:
                     raise DataError(
@@ -162,6 +185,7 @@ def load_loans(path):
     try:
         with file.open(encoding="utf-8", newline="") as f:
             reader = csv.DictReader(f)
+            _normalize_fieldnames(reader)
             required = {"loan_id", "name", "balance", "rate",
                         "monthly_payment", "day_of_month"}
             if not required.issubset(reader.fieldnames or []):
@@ -169,6 +193,7 @@ def load_loans(path):
                     f"В {path} нет обязательных колонок: {required}"
                 )
             for i, row in enumerate(reader, start=2):
+                row = _normalize_row(row)  
                 day = int(_parse_float(row["day_of_month"], i, "day_of_month"))
                 if not 1 <= day <= 31:
                     raise DataError(
@@ -201,6 +226,7 @@ def load_credit_cards(path):
     try:
         with file.open(encoding="utf-8", newline="") as f:
             reader = csv.DictReader(f)
+            _normalize_fieldnames(reader)
             required = {"card_id", "name", "spent", "grace_start",
                         "grace_days", "rate_after"}
             if not required.issubset(reader.fieldnames or []):
@@ -208,6 +234,7 @@ def load_credit_cards(path):
                     f"В {path} нет обязательных колонок: {required}"
                 )
             for i, row in enumerate(reader, start=2):
+                row = _normalize_row(row)  
                 cards.append(CreditCard(
                     card_id=row["card_id"].strip(),
                     name=row["name"].strip(),
