@@ -128,9 +128,6 @@ def load_transactions(path):
                     description=row["description"].strip(),
                     account_id=row["account_id"].strip(),
                 )
-                # эвристика: "перевод" в описании → перевод между своими
-                if "перевод" in tx.description.lower():
-                    tx.is_transfer = True
                 txs.append(tx)
     except FileNotFoundError as err:
         raise DataError(f"Файл транзакций не найден: {path}") from err
